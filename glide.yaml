@@ -1,0 +1,8 @@
+package: github.com/uthng/kvstruct
+import:
+- package: github.com/fatih/structs
+- package: github.com/hashicorp/consul
+  subpackages:
+  - api
+- package: github.com/spf13/cast
+  version: ^1.2.0
