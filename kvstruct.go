@@ -87,13 +87,29 @@ func MapToKVMap(in map[string]interface{}, prefix string) map[string]interface{}
 	// Loop map to build
 	for k, v := range in {
 		kind := reflect.ValueOf(v).Kind()
-		if kind != reflect.Map {
-			out[key+k] = v
-		} else {
-			o := kmToKVMap(key+k, v.(map[string]interface{}))
+		if kind == reflect.Map {
+			o := MapToKVMap(v.(map[string]interface{}), key+k)
 			for k1, v1 := range o {
 				out[k1] = v1
 			}
+		} else if kind == reflect.Slice {
+			// TODO: Maybe there is another way to do this more elegant
+			switch v.(type) {
+			case []int:
+				for i, e := range v.([]int) {
+					out[key+k+"/"+cast.ToString(i)] = e
+				}
+			case []string:
+				for i, e := range v.([]string) {
+					out[key+k+"/"+cast.ToString(i)] = e
+				}
+			case []bool:
+				for i, e := range v.([]bool) {
+					out[key+k+"/"+cast.ToString(i)] = e
+				}
+			}
+		} else {
+			out[key+k] = v
 		}
 	}
 
@@ -101,24 +117,3 @@ func MapToKVMap(in map[string]interface{}, prefix string) map[string]interface{}
 }
 
 //////////////////////// PRIVATE FUNCTIONS ///////////////////////
-
-// kmToKVMap loops & converts recursively nested map to a flatten map
-// and preprend "key" to each key
-func kmToKVMap(key string, m map[string]interface{}) map[string]interface{} {
-	out := make(map[string]interface{})
-
-	for k, v := range m {
-		newkey := key + "/" + k
-		kind := reflect.ValueOf(v).Kind()
-		if kind != reflect.Map {
-			out[newkey] = v
-		} else {
-			o := kmToKVMap(newkey, v.(map[string]interface{}))
-			for k1, v1 := range o {
-				out[k1] = v1
-			}
-		}
-	}
-
-	return out
-}
