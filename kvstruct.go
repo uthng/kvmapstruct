@@ -16,18 +16,40 @@ import (
 
 // KVStruct contains consul informations
 type KVStruct struct {
-	ConsulPath string
-	//ConsulConfig *consul.Config
+	// Path is consul key parent to store struct's fields
+	Path string
+	// Client is consul client
+	Client *consul.Client
 }
 
 // NewKVStruct creates a new KVStruct
-func NewKVStruct(url, token, path string) *KVStruct {
+// url: ip:port (Ex: 127.0.0.1:8500
+// token: ACL token
+// path: consul key to store all struct's fields
+func NewKVStruct(url, token, path string) (*KVStruct, error) {
 	ks := &KVStruct{}
 
-	ks.ConsulPath = path
+	ks.Path = path
 
 	// Initialize consul config
-	return ks
+	config := consul.DefaultConfig()
+
+	if url != "" {
+		config.Address = url
+	}
+
+	if token != "" {
+		config.Token = token
+	}
+
+	// Initialize consul client
+	client, err := consul.NewClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	ks.Client = client
+	return ks, nil
 }
 
 // StructToConsulKV converts and saves the struct/map to Consul
@@ -50,9 +72,19 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 		m = input.(map[string]interface{})
 	}
 
-	// Loop map to build
-	// Attention: 25 max for consul transaction => split
-	ks.MapToKVPairs(m, ks.ConsulPath)
+	// Mapping to kvpairs
+	pairs, err := ks.MapToKVPairs(m, ks.Path)
+	if err != nil {
+		return err
+	}
+
+	for _, kv := range pairs {
+		_, err := ks.Client.KV().Put(kv, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
