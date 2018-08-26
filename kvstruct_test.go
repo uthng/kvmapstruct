@@ -176,16 +176,16 @@ func TestMapToKVPairs(t *testing.T) {
 
 }
 
-func TestStructToConsulKV(t *testing.T) {
+func TestMapToConsulKV(t *testing.T) {
 	testCases := []struct {
 		name   string
 		prefix string
-		input  map[string]interface{}
+		input  interface{}
 		output map[string]interface{}
 	}{
 		{
-			"NestedMapWithoutPrefix",
-			"test1",
+			"NestedMap",
+			"nestedmap",
 			map[string]interface{}{
 				"key1": "val1",
 				"key2": 2,
@@ -199,44 +199,16 @@ func TestStructToConsulKV(t *testing.T) {
 				},
 			},
 			map[string]interface{}{
-				"test1/key1":                "val1",
-				"test1/key2":                "2",
-				"test1/key3/0":              "1",
-				"test1/key3/1":              "2",
-				"test1/key3/2":              "3",
-				"test1/key4/key41":          "val41",
-				"test1/key4/key42/key421":   "val421",
-				"test1/key4/key42/key422/0": "one",
-				"test1/key4/key42/key422/1": "two",
-				"test1/key4/key42/key422/2": "three",
-			},
-		},
-		{
-			"NestedMapWithPrefix",
-			"test2",
-			map[string]interface{}{
-				"key1": "val1",
-				"key2": 2,
-				"key3": []int{1, 2, 3},
-				"key4": map[string]interface{}{
-					"key41": "val41",
-					"key42": map[string]interface{}{
-						"key421": "val421",
-						"key422": []string{"one", "two", "three"},
-					},
-				},
-			},
-			map[string]interface{}{
-				"test2/key1":                "val1",
-				"test2/key2":                "2",
-				"test2/key3/0":              "1",
-				"test2/key3/1":              "2",
-				"test2/key3/2":              "3",
-				"test2/key4/key41":          "val41",
-				"test2/key4/key42/key421":   "val421",
-				"test2/key4/key42/key422/0": "one",
-				"test2/key4/key42/key422/1": "two",
-				"test2/key4/key42/key422/2": "three",
+				"nestedmap/key1":                "val1",
+				"nestedmap/key2":                "2",
+				"nestedmap/key3/0":              "1",
+				"nestedmap/key3/1":              "2",
+				"nestedmap/key3/2":              "3",
+				"nestedmap/key4/key41":          "val41",
+				"nestedmap/key4/key42/key421":   "val421",
+				"nestedmap/key4/key42/key422/0": "one",
+				"nestedmap/key4/key42/key422/1": "two",
+				"nestedmap/key4/key42/key422/2": "three",
 			},
 		},
 	}
@@ -277,6 +249,112 @@ func TestStructToConsulKV(t *testing.T) {
 			if !reflect.DeepEqual(out, tc.output) {
 				t.Errorf("\nwant:\n%s\nhave:\n%s", tc.output, out)
 			}
+
+			client.KV().DeleteTree(tc.prefix, nil)
+		})
+	}
+
+}
+
+type ST struct {
+	Key1 string
+	Key2 int
+	Key3 []int
+	Key4 STChildLevel1
+}
+
+type STChildLevel1 struct {
+	Key41 string
+	Key42 map[string]interface{}
+	Key43 STChildLevel2
+}
+
+type STChildLevel2 struct {
+	Key431 map[string]interface{}
+}
+
+func TestStructToConsulKV(t *testing.T) {
+	testCases := []struct {
+		name   string
+		prefix string
+		input  ST
+		output map[string]interface{}
+	}{
+		{
+			"Struct",
+			"nestedstructmap",
+			ST{
+				Key1: "val1",
+				Key2: 2,
+				Key3: []int{1, 2, 3},
+				Key4: STChildLevel1{
+					Key41: "val41",
+					Key42: map[string]interface{}{
+						"Key421": "val421",
+						"Key422": []string{"one", "two", "three"},
+					},
+					Key43: STChildLevel2{
+						Key431: map[string]interface{}{
+							"Key4311": "val4311",
+						},
+					},
+				},
+			},
+			map[string]interface{}{
+				"nestedstructmap/Key1":                      "val1",
+				"nestedstructmap/Key2":                      "2",
+				"nestedstructmap/Key3/0":                    "1",
+				"nestedstructmap/Key3/1":                    "2",
+				"nestedstructmap/Key3/2":                    "3",
+				"nestedstructmap/Key4/Key41":                "val41",
+				"nestedstructmap/Key4/Key42/Key421":         "val421",
+				"nestedstructmap/Key4/Key42/Key422/0":       "one",
+				"nestedstructmap/Key4/Key42/Key422/1":       "two",
+				"nestedstructmap/Key4/Key42/Key422/2":       "three",
+				"nestedstructmap/Key4/Key43/Key431/Key4311": "val4311",
+			},
+		},
+	}
+
+	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+
+	config := consul.DefaultConfig()
+	config.Address = "localhost:8500"
+	config.Token = "adf4238a-882b-9ddc-4a9d-5b6758e4159e"
+
+	client, err := consul.NewClient(config)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := make(map[string]interface{})
+
+			ks.Path = tc.prefix
+
+			err := ks.StructToConsulKV(tc.input)
+			if err != nil {
+				t.Errorf("%s", err.Error())
+			}
+
+			pairs, _, err := client.KV().List(tc.prefix, nil)
+			if err != nil {
+				t.Errorf("%s", err.Error())
+			}
+
+			for _, kv := range pairs {
+				out[kv.Key] = string(kv.Value)
+			}
+
+			if !reflect.DeepEqual(out, tc.output) {
+				t.Errorf("\nwant:\n%s\nhave:\n%s", tc.output, out)
+			}
+
+			client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 
