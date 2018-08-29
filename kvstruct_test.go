@@ -321,15 +321,6 @@ func TestStructToConsulKV(t *testing.T) {
 		t.Errorf("%s", err.Error())
 	}
 
-	config := consul.DefaultConfig()
-	config.Address = "localhost:8500"
-	config.Token = "adf4238a-882b-9ddc-4a9d-5b6758e4159e"
-
-	client, err := consul.NewClient(config)
-	if err != nil {
-		t.Errorf("%s", err.Error())
-	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			out := make(map[string]interface{})
@@ -341,7 +332,7 @@ func TestStructToConsulKV(t *testing.T) {
 				t.Errorf("%s", err.Error())
 			}
 
-			pairs, _, err := client.KV().List(tc.prefix, nil)
+			pairs, _, err := ks.Client.KV().List(tc.prefix, nil)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -354,7 +345,7 @@ func TestStructToConsulKV(t *testing.T) {
 				t.Errorf("\nwant:\n%s\nhave:\n%s", tc.output, out)
 			}
 
-			client.KV().DeleteTree(tc.prefix, nil)
+			ks.Client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 
@@ -518,7 +509,7 @@ func TestFlattenMapToStruct(t *testing.T) {
 				},
 			}
 
-			err := FlattenMapToStruct(tc.input, tc.prefix, st)
+			err := FlattenMapToStruct(tc.input, st)
 			if err != nil {
 				t.Errorf("%s", err)
 			}
@@ -590,6 +581,172 @@ func TestKVMapToStruct(t *testing.T) {
 			if !reflect.DeepEqual(st, tc.output) {
 				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, st)
 			}
+		})
+	}
+
+}
+
+func TestKVPairsToStruct(t *testing.T) {
+	testCases := []struct {
+		name   string
+		prefix string
+		input  map[string]interface{}
+		output *ST
+	}{
+		{
+			"KVPairsToStruct",
+			"test",
+			map[string]interface{}{
+				"test/Key1":                      "val1",
+				"test/Key2":                      "2",
+				"test/Key3/0":                    "1",
+				"test/Key3/1":                    "2",
+				"test/Key3/2":                    "3",
+				"test/Key4/Key41":                "val41",
+				"test/Key4/Key42/Key421":         "val421",
+				"test/Key4/Key42/Key422/0":       "one",
+				"test/Key4/Key42/Key422/1":       "two",
+				"test/Key4/Key42/Key422/2":       "three",
+				"test/Key4/Key43/Key431/Key4311": "val4311",
+			},
+			&ST{
+				Key1: "val1",
+				Key2: 2,
+				Key3: []int{1, 2, 3},
+				Key4: &STChildLevel1{
+					Key41: "val41",
+					Key42: map[string]interface{}{
+						"Key421": "val421",
+						"Key422": []string{"one", "two", "three"},
+					},
+					Key43: &STChildLevel2{
+						Key431: map[string]interface{}{
+							"Key4311": "val4311",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := &ST{
+				Key4: &STChildLevel1{
+					Key43: &STChildLevel2{},
+				},
+			}
+
+			ks.Path = tc.prefix
+
+			// Insert data in to consul
+			for k, v := range tc.input {
+				kv := &consul.KVPair{
+					Key:   k,
+					Value: []byte(v.(string)),
+				}
+
+				_, err := ks.Client.KV().Put(kv, nil)
+				if err != nil {
+					t.Errorf("%s", err)
+				}
+			}
+
+			err := ks.KVPairsToStruct(st)
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+
+			if !reflect.DeepEqual(st, tc.output) {
+				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, st)
+			}
+
+			ks.Client.KV().DeleteTree(tc.prefix, nil)
+		})
+	}
+
+}
+
+func TestKVPairsToMap(t *testing.T) {
+	testCases := []struct {
+		name   string
+		prefix string
+		input  map[string]interface{}
+		output map[string]interface{}
+	}{
+		{
+			"KVPairsToMap",
+			"test",
+			map[string]interface{}{
+				"test/Key1":                      "val1",
+				"test/Key2":                      "2",
+				"test/Key3/0":                    "1",
+				"test/Key3/1":                    "2",
+				"test/Key3/2":                    "3",
+				"test/Key4/Key41":                "val41",
+				"test/Key4/Key42/Key421":         "val421",
+				"test/Key4/Key42/Key422/0":       "one",
+				"test/Key4/Key42/Key422/1":       "two",
+				"test/Key4/Key42/Key422/2":       "three",
+				"test/Key4/Key43/Key431/Key4311": "val4311",
+			},
+			map[string]interface{}{
+				"Key1": "val1",
+				"Key2": "2",
+				"Key3": []string{"1", "2", "3"},
+				"Key4": map[string]interface{}{
+					"Key41": "val41",
+					"Key42": map[string]interface{}{
+						"Key421": "val421",
+						"Key422": []string{"one", "two", "three"},
+					},
+					"Key43": map[string]interface{}{
+						"Key431": map[string]interface{}{
+							"Key4311": "val4311",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ks.Path = tc.prefix
+
+			// Insert data in to consul
+			for k, v := range tc.input {
+				kv := &consul.KVPair{
+					Key:   k,
+					Value: []byte(v.(string)),
+				}
+
+				_, err := ks.Client.KV().Put(kv, nil)
+				if err != nil {
+					t.Errorf("%s", err)
+				}
+			}
+
+			out, err := ks.KVPairsToMap()
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+
+			if !reflect.DeepEqual(out, tc.output) {
+				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, out)
+			}
+
+			ks.Client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 

@@ -91,10 +91,45 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 	return nil
 }
 
-// KVPairsToStruct gets list of all consul keys, remove prefix if set,
+// KVPairsToStruct gets list of all consul keys from kvstruct path
 // and match them to out struct or map
-func (ks *KVStruct) KVPairsToStruct(in consul.KVPairs, out interface{}) error {
-	return nil
+func (ks *KVStruct) KVPairsToStruct(out interface{}) error {
+	m := make(map[string]interface{})
+
+	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	if err != nil {
+		return err
+	}
+
+	// Build map
+	for _, kv := range pairs {
+		m[kv.Key] = string(kv.Value)
+	}
+
+	err = KVMapToStruct(m, ks.Path, out)
+
+	return err
+}
+
+// KVPairsToMap gets list of all consul keys from kvstruct path
+// and match them to a map[string]interface{}
+func (ks *KVStruct) KVPairsToMap() (map[string]interface{}, error) {
+	m := make(map[string]interface{})
+	out := make(map[string]interface{})
+
+	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build map
+	for _, kv := range pairs {
+		m[kv.Key] = string(kv.Value)
+	}
+
+	out, err = KVMapToMap(m, ks.Path)
+
+	return out, err
 }
 
 // MapToKVPairs convert a map to a flatten kv pairs
@@ -202,6 +237,12 @@ func MapToFlattenMap(in map[string]interface{}, prefix string) map[string]interf
 func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) error {
 	var inVal interface{}
 
+	key := ""
+
+	if prefix != "" {
+		key = prefix + "/"
+	}
+
 	v := reflect.ValueOf(out)
 	// Get value of pointer
 	indirect := reflect.Indirect(v)
@@ -228,7 +269,7 @@ func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) er
 			arr := []string{}
 			// Loop by incremnenting i to get all values of slice
 			for {
-				v1, ok := in[k+"/"+cast.ToString(i)]
+				v1, ok := in[key+k+"/"+cast.ToString(i)]
 				if !ok {
 					break
 				}
@@ -238,8 +279,8 @@ func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) er
 
 			inVal = arr
 		} else if kind == reflect.Map {
-			// Convert kv map to a nested map with prefix that is the key
-			m, err := KVMapToMap(in, k)
+			// Convert kv map to a nested map
+			m, err := KVMapToMap(in, key+k)
 			if err != nil {
 				return err
 			}
@@ -248,7 +289,7 @@ func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) er
 
 		} else {
 			// Check in kvmap
-			inVal = in[k]
+			inVal = in[key+k]
 		}
 
 		// Assign value following its type
@@ -271,7 +312,7 @@ func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) er
 	}
 
 	// Convert struct's flatten map to struct
-	err := FlattenMapToStruct(flattenOut, prefix, out)
+	err := FlattenMapToStruct(flattenOut, out)
 	//fmt.Println(err, out)
 	return err
 }
@@ -394,7 +435,7 @@ func KVMapToMap(in map[string]interface{}, prefix string) (map[string]interface{
 // FlattenMapToStruct converts
 // Go struct that is going to be filled up must be a pointer and initialized.
 // If it is a neseted struct, all substructs must be a pointer and get initialized.
-func FlattenMapToStruct(in map[string]interface{}, prefix string, out interface{}) error {
+func FlattenMapToStruct(in map[string]interface{}, out interface{}) error {
 	if out == nil {
 		return fmt.Errorf("go struct is not initialized")
 	}
@@ -416,7 +457,7 @@ func FlattenMapToStruct(in map[string]interface{}, prefix string, out interface{
 		v := indirect.FieldByName(field.Name)
 
 		if k == reflect.Ptr && reflect.Indirect(v).Kind() == reflect.Struct {
-			err := FlattenMapToStruct(cast.ToStringMap(in[field.Name]), field.Name, v.Interface())
+			err := FlattenMapToStruct(cast.ToStringMap(in[field.Name]), v.Interface())
 			if err != nil {
 				return err
 			}
