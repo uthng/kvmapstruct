@@ -232,7 +232,7 @@ func TestMapToConsulKV(t *testing.T) {
 			out := make(map[string]interface{})
 
 			ks.Path = tc.prefix
-			err := ks.StructToConsulKV(tc.input)
+			err := ks.MapToConsulKV(tc.input)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -586,7 +586,7 @@ func TestKVMapToStruct(t *testing.T) {
 
 }
 
-func TestKVPairsToStruct(t *testing.T) {
+func TestConsulKVToStruct(t *testing.T) {
 	testCases := []struct {
 		name   string
 		prefix string
@@ -657,7 +657,7 @@ func TestKVPairsToStruct(t *testing.T) {
 				}
 			}
 
-			err := ks.KVPairsToStruct(st)
+			err := ks.ConsulKVToStruct(st)
 			if err != nil {
 				t.Errorf("%s", err)
 			}
@@ -672,7 +672,7 @@ func TestKVPairsToStruct(t *testing.T) {
 
 }
 
-func TestKVPairsToMap(t *testing.T) {
+func TestConsulKVToMap(t *testing.T) {
 	testCases := []struct {
 		name   string
 		prefix string
@@ -737,7 +737,7 @@ func TestKVPairsToMap(t *testing.T) {
 				}
 			}
 
-			out, err := ks.KVPairsToMap()
+			out, err := ks.ConsulKVToMap()
 			if err != nil {
 				t.Errorf("%s", err)
 			}

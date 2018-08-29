@@ -1,3 +1,18 @@
+// Package kvstruct exposes various utility functions to do conversions between:
+// Consul KV pairs and native Go Struct or map[string]interface{}.
+//
+// It also provides several utilities to convert directly:
+// nested map to flatten/kv map or Consul kv pairs, flatten/kv map to Go struct,
+// Kv map to nested map, etc.
+//
+// There are some notions that are used in this package.
+// Nested map: classic map[string]interface{}.
+// Flatten map: map[string]interface{} represents key/value and value can be a normal type including slice or map
+// KV map: map[string]interface{} represents key/value but value can not be slice or map.
+// A slice will be represented by keys suffixed by 0, 1, 2 etc.
+//
+// Only the following value types are supported:
+// int, bool, string, []int, []bool, []string and map[string]interface{}
 package kvstruct
 
 import (
@@ -17,7 +32,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-// KVStruct contains consul informations
+// KVStruct contains consul informations.
 type KVStruct struct {
 	// Path is consul key parent to store struct's fields
 	Path string
@@ -25,10 +40,8 @@ type KVStruct struct {
 	Client *consul.Client
 }
 
-// NewKVStruct creates a new KVStruct
-// url: ip:port (Ex: 127.0.0.1:8500
-// token: ACL token
-// path: consul key to store all struct's fields
+// NewKVStruct creates a new *KVStruct.
+// Format of URL is ip:port.
 func NewKVStruct(url, token, path string) (*KVStruct, error) {
 	ks := &KVStruct{}
 
@@ -55,25 +68,19 @@ func NewKVStruct(url, token, path string) (*KVStruct, error) {
 	return ks, nil
 }
 
-// StructToConsulKV converts and saves the struct/map to Consul
-// input may be a struct or a map
+// StructToConsulKV converts and saves the struct to Consul KV store
+// Input may be a Go struct.
 func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 	m := make(map[string]interface{})
 	v := reflect.ValueOf(input)
 	k := v.Kind()
 
-	if k != reflect.Map && k != reflect.Struct {
-		return fmt.Errorf("Error of input's type! Only map or struct are supported")
+	if k != reflect.Struct {
+		return fmt.Errorf("Error: input is not a Go struct")
 	}
 
-	// If struct, convert it to Map
-	if k == reflect.Struct {
-		m = structs.Map(input)
-	}
-
-	if k == reflect.Map {
-		m = input.(map[string]interface{})
-	}
+	// Convert it to Map
+	m = structs.Map(input)
 
 	// Mapping to kvpairs
 	pairs, err := ks.MapToKVPairs(m, ks.Path)
@@ -91,9 +98,38 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 	return nil
 }
 
-// KVPairsToStruct gets list of all consul keys from kvstruct path
-// and match them to out struct or map
-func (ks *KVStruct) KVPairsToStruct(out interface{}) error {
+// MapToConsulKV converts and saves the map to Consul KV store.
+// Input may be a map[string]interface{}.
+func (ks *KVStruct) MapToConsulKV(input interface{}) error {
+	v := reflect.ValueOf(input)
+	k := v.Kind()
+
+	if k != reflect.Map {
+		return fmt.Errorf("Error: input is not a map[string]interface{}")
+	}
+
+	m := input.(map[string]interface{})
+
+	// Mapping to kvpairs
+	pairs, err := ks.MapToKVPairs(m, ks.Path)
+	if err != nil {
+		return err
+	}
+
+	for _, kv := range pairs {
+		_, err := ks.Client.KV().Put(kv, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ConsulKVToStruct gets list of all consul keys from kvstruct path
+// and match them to the given struct in argument.
+// The Go struct and its substruct must be a pointer and initialized.
+func (ks *KVStruct) ConsulKVToStruct(out interface{}) error {
 	m := make(map[string]interface{})
 
 	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
@@ -111,9 +147,9 @@ func (ks *KVStruct) KVPairsToStruct(out interface{}) error {
 	return err
 }
 
-// KVPairsToMap gets list of all consul keys from kvstruct path
-// and match them to a map[string]interface{}
-func (ks *KVStruct) KVPairsToMap() (map[string]interface{}, error) {
+// ConsulKVToMap gets list of all consul keys from kvstruct path
+// and match them to a map[string]interface{}.
+func (ks *KVStruct) ConsulKVToMap() (map[string]interface{}, error) {
 	m := make(map[string]interface{})
 	out := make(map[string]interface{})
 
@@ -132,7 +168,7 @@ func (ks *KVStruct) KVPairsToMap() (map[string]interface{}, error) {
 	return out, err
 }
 
-// MapToKVPairs convert a map to a flatten kv pairs
+// MapToKVPairs convert a nested map to an array of Consul KV pairs
 func (ks *KVStruct) MapToKVPairs(in map[string]interface{}, prefix string) (consul.KVPairs, error) {
 	var out consul.KVPairs
 
@@ -151,7 +187,7 @@ func (ks *KVStruct) MapToKVPairs(in map[string]interface{}, prefix string) (cons
 	return out, nil
 }
 
-// MapToKVMap convert a map to a flatten kv list handling slice & array
+// MapToKVMap convert a nested map to a KV map.
 func MapToKVMap(in map[string]interface{}, prefix string) map[string]interface{} {
 	out := make(map[string]interface{})
 	key := ""
@@ -192,8 +228,7 @@ func MapToKVMap(in map[string]interface{}, prefix string) map[string]interface{}
 	return out
 }
 
-// MapToFlattenMap converts a nested map to a flatten map keeping slice & array
-// Only the following types: int, bool, string and map[string]interface{} are supported.
+// MapToFlattenMap converts a nested map to a flatten map.
 func MapToFlattenMap(in map[string]interface{}, prefix string) map[string]interface{} {
 	out := make(map[string]interface{})
 	key := ""
@@ -232,8 +267,8 @@ func MapToFlattenMap(in map[string]interface{}, prefix string) map[string]interf
 	return out
 }
 
-// KVMapToStruct converts a key map to struct.
-// Only the following types: int, bool, string and map[string]interface{} are supported.
+// KVMapToStruct converts a KV map to a Go struct.
+// Go struct and its substruct must be a pointer and initialized.
 func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) error {
 	var inVal interface{}
 
@@ -317,10 +352,7 @@ func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) er
 	return err
 }
 
-// KVMapToMap converts a flatten kv pairs map to nested map
-// In KVMap, a  slice is represented by keys appended by integers such as key/0, key/1, key/2 etc.
-// KVMapToMap tries to rebulild and respect slice type. But only common types such as
-// int, bool, string and map[string]interface{} are supported
+// KVMapToMap converts a KV map to nested map.
 func KVMapToMap(in map[string]interface{}, prefix string) (map[string]interface{}, error) {
 	var keys []string
 	out := make(map[string]interface{})
@@ -432,9 +464,8 @@ func KVMapToMap(in map[string]interface{}, prefix string) (map[string]interface{
 	return out, nil
 }
 
-// FlattenMapToStruct converts
-// Go struct that is going to be filled up must be a pointer and initialized.
-// If it is a neseted struct, all substructs must be a pointer and get initialized.
+// FlattenMapToStruct converts a flatten map to a Go struct.
+// Go struct and its substruct must be a pointer and initialized.
 func FlattenMapToStruct(in map[string]interface{}, out interface{}) error {
 	if out == nil {
 		return fmt.Errorf("go struct is not initialized")
