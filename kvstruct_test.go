@@ -1,7 +1,6 @@
 package kvstruct
 
 import (
-	//"fmt"
 	"reflect"
 	"testing"
 
@@ -801,6 +800,83 @@ func TestConsulKVToMap(t *testing.T) {
 			}
 
 			ks.Client.KV().DeleteTree(tc.prefix, nil)
+		})
+	}
+
+}
+
+func TestConsulKVToEmbeddedStruct(t *testing.T) {
+	type STChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type STChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		STChildLevel2
+	}
+
+	type ST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		STChildLevel1
+	}
+
+	testCases := []struct {
+		name   string
+		prefix string
+		input  map[string]interface{}
+		output *ST
+	}{
+		{
+			"NestedMapWithPrefix",
+			"",
+			map[string]interface{}{
+				"Key1":                                       "val1",
+				"Key2":                                       2,
+				"Key3/0":                                     1,
+				"Key3/1":                                     2,
+				"Key3/2":                                     3,
+				"STChildLevel1/Key41":                        "val41",
+				"STChildLevel1/Key42/Key421":                 "val421",
+				"STChildLevel1/Key42/Key422/0":               "one",
+				"STChildLevel1/Key42/Key422/1":               "two",
+				"STChildLevel1/Key42/Key422/2":               "three",
+				"STChildLevel1/STChildLevel2/Key431/Key4311": "val4311",
+			},
+			&ST{
+				Key1: "val1",
+				Key2: 2,
+				Key3: []int{1, 2, 3},
+				STChildLevel1: STChildLevel1{
+					Key41: "val41",
+					Key42: map[string]interface{}{
+						"Key421": "val421",
+						"Key422": []string{"one", "two", "three"},
+					},
+					STChildLevel2: STChildLevel2{
+						Key431: map[string]interface{}{
+							"Key4311": "val4311",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := &ST{}
+
+			err := KVMapToStruct(tc.input, tc.prefix, st)
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+
+			if !reflect.DeepEqual(st, tc.output) {
+				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, st)
+			}
 		})
 	}
 

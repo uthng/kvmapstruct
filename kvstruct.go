@@ -487,11 +487,25 @@ func FlattenMapToStruct(in map[string]interface{}, out interface{}) error {
 		k := field.Type.Kind()
 		v := indirect.FieldByName(field.Name)
 
+		// If struct is a pointer
 		if k == reflect.Ptr && reflect.Indirect(v).Kind() == reflect.Struct {
 			err := FlattenMapToStruct(cast.ToStringMap(in[field.Name]), v.Interface())
 			if err != nil {
 				return err
 			}
+			// If struct is an embedded struct
+		} else if k == reflect.Struct && field.Anonymous {
+			// Create new struct pointer with the same type or same struct of embedded struct
+			st := reflect.New(v.Type())
+			// Call recursively to set value of each field of embedded struct
+			err := FlattenMapToStruct(cast.ToStringMap(in[field.Name]), st.Interface())
+			if err != nil {
+				return err
+			}
+
+			// Set current value to value of the pointer of embedded struct
+			v.Set(st.Elem())
+
 		} else {
 			switch t := v.Interface().(type) {
 			case string:

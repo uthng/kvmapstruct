@@ -400,6 +400,50 @@ func ExampleKVMapToStruct() {
 	fmt.Println(st)
 }
 
+func ExampleKVMapToStruct_embeddedStruct() {
+	type ExSTChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type ExSTChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		ExSTChildLevel2
+	}
+
+	type ExST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		ExSTChildLevel1
+	}
+
+	input := map[string]interface{}{
+		"Key1":                                           "val1",
+		"Key2":                                           2,
+		"Key3/0":                                         1,
+		"Key3/1":                                         2,
+		"Key3/2":                                         3,
+		"ExSTChildLevel1/Key41":                          "val41",
+		"ExSTChildLevel1/Key42/Key421":                   "val421",
+		"ExSTChildLevel1/Key42/Key422/0":                 "one",
+		"ExSTChildLevel1/Key42/Key422/1":                 "two",
+		"ExSTChildLevel1/Key42/Key422/2":                 "three",
+		"ExSTChildLevel1/ExSTChildLevel2/Key431/Key4311": "val4311",
+	}
+
+	st := &ExST{}
+
+	err := KVMapToStruct(input, "", st)
+	if err != nil {
+		return
+	}
+
+	fmt.Printf("%++v\n", st)
+	// Output:
+	// &{Key1:val1 Key2:2 Key3:[1 2 3] ExSTChildLevel1:{Key41:val41 Key42:map[Key421:val421 Key422:[one two three]] ExSTChildLevel2:{Key431:map[Key4311:val4311]}}}
+}
+
 func ExampleKVStruct_ConsulKVToStruct() {
 
 	type ExSTChildLevel2 struct {
@@ -467,6 +511,72 @@ func ExampleKVStruct_ConsulKVToStruct() {
 	fmt.Println(st)
 }
 
+func ExampleKVStruct_ConsulKVToStruct_embeddedStruct() {
+
+	type ExSTChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type ExSTChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		ExSTChildLevel2
+	}
+
+	type ExST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		ExSTChildLevel1
+	}
+
+	input := map[string]interface{}{
+		"test/Key1":                                           "val1",
+		"test/Key2":                                           "2",
+		"test/Key3/0":                                         "1",
+		"test/Key3/1":                                         "2",
+		"test/Key3/2":                                         "3",
+		"test/ExSTChildLevel1/Key41":                          "val41",
+		"test/ExSTChildLevel1/Key42/Key421":                   "val421",
+		"test/ExSTChildLevel1/Key42/Key422/0":                 "one",
+		"test/ExSTChildLevel1/Key42/Key422/1":                 "two",
+		"test/ExSTChildLevel1/Key42/Key422/2":                 "three",
+		"test/ExSTChildLevel1/ExSTChildLevel2/Key431/Key4311": "val4311",
+	}
+
+	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	if err != nil {
+		return
+	}
+
+	st := &ExST{}
+
+	ks.Path = "test"
+
+	// Insert data in to consul
+	for k, v := range input {
+		kv := &consul.KVPair{
+			Key:   k,
+			Value: []byte(v.(string)),
+		}
+
+		_, err := ks.Client.KV().Put(kv, nil)
+		if err != nil {
+			return
+		}
+	}
+
+	err = ks.ConsulKVToStruct(st)
+	if err != nil {
+		return
+	}
+
+	ks.Client.KV().DeleteTree(ks.Path, nil)
+
+	fmt.Printf("%++v\n", st)
+	// Output:
+	// &{Key1:val1 Key2:2 Key3:[1 2 3] ExSTChildLevel1:{Key41:val41 Key42:map[Key421:val421 Key422:[one two three]] ExSTChildLevel2:{Key431:map[Key4311:val4311]}}}
+}
 func ExampleKVStruct_ConsulKVToMap() {
 	input := map[string]interface{}{
 		"test/Key1":                      "val1",
