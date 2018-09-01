@@ -256,24 +256,24 @@ func TestMapToConsulKV(t *testing.T) {
 
 }
 
-type ST struct {
-	Key1 string
-	Key2 int
-	Key3 []int
-	Key4 *STChildLevel1
-}
-
-type STChildLevel1 struct {
-	Key41 string
-	Key42 map[string]interface{}
-	Key43 *STChildLevel2
-}
-
-type STChildLevel2 struct {
-	Key431 map[string]interface{}
-}
-
 func TestStructToConsulKV(t *testing.T) {
+	type STChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type STChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		Key43 *STChildLevel2
+	}
+
+	type ST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		Key4 *STChildLevel1
+	}
+
 	testCases := []struct {
 		name   string
 		prefix string
@@ -455,6 +455,24 @@ func TestKVMapToMap(t *testing.T) {
 }
 
 func TestFlattenMapToStruct(t *testing.T) {
+
+	type STChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type STChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		Key43 *STChildLevel2
+	}
+
+	type ST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		Key4 *STChildLevel1
+	}
+
 	testCases := []struct {
 		name   string
 		prefix string
@@ -523,6 +541,24 @@ func TestFlattenMapToStruct(t *testing.T) {
 }
 
 func TestKVMapToStruct(t *testing.T) {
+
+	type STChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type STChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		Key43 *STChildLevel2
+	}
+
+	type ST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		Key4 *STChildLevel1
+	}
+
 	testCases := []struct {
 		name   string
 		prefix string
@@ -587,6 +623,24 @@ func TestKVMapToStruct(t *testing.T) {
 }
 
 func TestConsulKVToStruct(t *testing.T) {
+
+	type STChildLevel2 struct {
+		Key431 map[string]interface{}
+	}
+
+	type STChildLevel1 struct {
+		Key41 string
+		Key42 map[string]interface{}
+		Key43 *STChildLevel2
+	}
+
+	type ST struct {
+		Key1 string
+		Key2 int
+		Key3 []int
+		Key4 *STChildLevel1
+	}
+
 	testCases := []struct {
 		name   string
 		prefix string
