@@ -1,4 +1,4 @@
-package: github.com/uthng/kvstruct
+package: github.com/uthng/kvmapstruct
 import:
 - package: github.com/fatih/structs
 - package: github.com/hashicorp/consul

@@ -1,4 +1,4 @@
-// Package kvstruct exposes various utility functions to do conversions between:
+// Package kvmapstruct exposes various utility functions to do conversions between:
 // Consul KV pairs and native Go Struct or map[string]interface{}.
 //
 // It also provides several utilities to convert directly:
@@ -13,7 +13,7 @@
 //
 // Only the following value types are supported:
 // int, bool, string, []int, []bool, []string and map[string]interface{}
-package kvstruct
+package kvmapstruct
 
 import (
 	"fmt"
@@ -32,20 +32,20 @@ import (
 	"github.com/spf13/cast"
 )
 
-// KVStruct contains consul informations.
-type KVStruct struct {
+// KVMapStruct contains consul informations.
+type KVMapStruct struct {
 	// Path is consul key parent to store struct's fields
 	Path string
 	// Client is consul client
 	Client *consul.Client
 }
 
-// NewKVStruct creates a new *KVStruct.
+// NewKVMapStruct creates a new *KVMapStruct.
 // URL format is ip:port.
-func NewKVStruct(url, token, path string) (*KVStruct, error) {
-	ks := &KVStruct{}
+func NewKVMapStruct(url, token, path string) (*KVMapStruct, error) {
+	kms := &KVMapStruct{}
 
-	ks.Path = path
+	kms.Path = path
 
 	// Initialize consul config
 	config := consul.DefaultConfig()
@@ -64,13 +64,13 @@ func NewKVStruct(url, token, path string) (*KVStruct, error) {
 		return nil, err
 	}
 
-	ks.Client = client
-	return ks, nil
+	kms.Client = client
+	return kms, nil
 }
 
 // StructToConsulKV converts and saves the struct to Consul KV store
 // input argument must be a Go struct.
-func (ks *KVStruct) StructToConsulKV(input interface{}) error {
+func (kms *KVMapStruct) StructToConsulKV(input interface{}) error {
 	m := make(map[string]interface{})
 	v := reflect.ValueOf(input)
 	k := v.Kind()
@@ -83,13 +83,13 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 	m = structs.Map(input)
 
 	// Mapping to kvpairs
-	pairs, err := ks.MapToKVPairs(m, ks.Path)
+	pairs, err := kms.MapToKVPairs(m, kms.Path)
 	if err != nil {
 		return err
 	}
 
 	for _, kv := range pairs {
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 
 // MapToConsulKV converts and saves the map to Consul KV store.
 // input argument must be a map[string]interface{}.
-func (ks *KVStruct) MapToConsulKV(input interface{}) error {
+func (kms *KVMapStruct) MapToConsulKV(input interface{}) error {
 	v := reflect.ValueOf(input)
 	k := v.Kind()
 
@@ -111,13 +111,13 @@ func (ks *KVStruct) MapToConsulKV(input interface{}) error {
 	m := input.(map[string]interface{})
 
 	// Mapping to kvpairs
-	pairs, err := ks.MapToKVPairs(m, ks.Path)
+	pairs, err := kms.MapToKVPairs(m, kms.Path)
 	if err != nil {
 		return err
 	}
 
 	for _, kv := range pairs {
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return err
 		}
@@ -126,15 +126,15 @@ func (ks *KVStruct) MapToConsulKV(input interface{}) error {
 	return nil
 }
 
-// ConsulKVToStruct gets list of all consul keys from kvstruct path
+// ConsulKVToStruct gets list of all consul keys from kvmapstruct path
 // and match them to the given struct in argument.
 // Out argument must be a initialiezed pointer to a Go struct.
 // Its substructs can be a pointer to a struct, embedded struct or struct.
 // If it is a pointer, it must be initialized.
-func (ks *KVStruct) ConsulKVToStruct(out interface{}) error {
+func (kms *KVMapStruct) ConsulKVToStruct(out interface{}) error {
 	m := make(map[string]interface{})
 
-	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	pairs, _, err := kms.Client.KV().List(kms.Path, nil)
 	if err != nil {
 		return err
 	}
@@ -144,18 +144,18 @@ func (ks *KVStruct) ConsulKVToStruct(out interface{}) error {
 		m[kv.Key] = string(kv.Value)
 	}
 
-	err = KVMapToStruct(m, ks.Path, out)
+	err = KVMapToStruct(m, kms.Path, out)
 
 	return err
 }
 
-// ConsulKVToMap gets list of all consul keys from kvstruct path
+// ConsulKVToMap gets list of all consul keys from kvmapstruct path
 // and match them to a map[string]interface{}.
-func (ks *KVStruct) ConsulKVToMap() (map[string]interface{}, error) {
+func (kms *KVMapStruct) ConsulKVToMap() (map[string]interface{}, error) {
 	m := make(map[string]interface{})
 	out := make(map[string]interface{})
 
-	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	pairs, _, err := kms.Client.KV().List(kms.Path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -165,13 +165,13 @@ func (ks *KVStruct) ConsulKVToMap() (map[string]interface{}, error) {
 		m[kv.Key] = string(kv.Value)
 	}
 
-	out, err = KVMapToMap(m, ks.Path)
+	out, err = KVMapToMap(m, kms.Path)
 
 	return out, err
 }
 
 // MapToKVPairs convert a nested map to an array of Consul KV pairs
-func (ks *KVStruct) MapToKVPairs(in map[string]interface{}, prefix string) (consul.KVPairs, error) {
+func (kms *KVMapStruct) MapToKVPairs(in map[string]interface{}, prefix string) (consul.KVPairs, error) {
 	var out consul.KVPairs
 
 	// Convert to flatten map

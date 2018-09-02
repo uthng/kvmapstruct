@@ -1,4 +1,4 @@
-package kvstruct
+package kvmapstruct
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ func ExampleMapToKVMap() {
 	// true
 }
 
-func ExampleKVStruct_MapToKVPairs() {
+func ExampleKVMapStruct_MapToKVPairs() {
 	input := map[string]interface{}{
 		"key1": "val1",
 		"key2": 2,
@@ -57,13 +57,13 @@ func ExampleKVStruct_MapToKVPairs() {
 		},
 	}
 
-	ks, err := NewKVStruct("", "", "test")
+	kms, err := NewKVMapStruct("", "", "test")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	o, err := ks.MapToKVPairs(input, ks.Path)
+	o, err := kms.MapToKVPairs(input, kms.Path)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -96,7 +96,7 @@ func ExampleKVStruct_MapToKVPairs() {
 	//test/key4/key42/key422/2 : three
 }
 
-func ExampleKVStruct_MapToConsulKV() {
+func ExampleKVMapStruct_MapToConsulKV() {
 
 	input := map[string]interface{}{
 		"key1": "val1",
@@ -111,7 +111,7 @@ func ExampleKVStruct_MapToConsulKV() {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
@@ -119,13 +119,13 @@ func ExampleKVStruct_MapToConsulKV() {
 	out := make(map[string]interface{})
 	keys := []string{}
 
-	ks.Path = "nestedmap"
-	err = ks.MapToConsulKV(input)
+	kms.Path = "nestedmap"
+	err = kms.MapToConsulKV(input)
 	if err != nil {
 		return
 	}
 
-	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	pairs, _, err := kms.Client.KV().List(kms.Path, nil)
 	if err != nil {
 		return
 	}
@@ -153,10 +153,10 @@ func ExampleKVStruct_MapToConsulKV() {
 	//nestedmap/key4/key42/key422/1 : two
 	//nestedmap/key4/key42/key422/2 : three
 
-	ks.Client.KV().DeleteTree(ks.Path, nil)
+	kms.Client.KV().DeleteTree(kms.Path, nil)
 }
 
-func ExampleKVStruct_StructToConsulKV() {
+func ExampleKVMapStruct_StructToConsulKV() {
 	type ExSTChildLevel2 struct {
 		Key431 map[string]interface{}
 	}
@@ -192,7 +192,7 @@ func ExampleKVStruct_StructToConsulKV() {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
@@ -200,15 +200,15 @@ func ExampleKVStruct_StructToConsulKV() {
 	out := make(map[string]interface{})
 	keys := []string{}
 
-	ks.Path = "nestedstructmap"
+	kms.Path = "nestedstructmap"
 
-	err = ks.StructToConsulKV(input)
+	err = kms.StructToConsulKV(input)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	pairs, _, err := ks.Client.KV().List(ks.Path, nil)
+	pairs, _, err := kms.Client.KV().List(kms.Path, nil)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -237,7 +237,7 @@ func ExampleKVStruct_StructToConsulKV() {
 	//nestedstructmap/Key4/Key42/Key422/2 : three
 	//nestedstructmap/Key4/Key43/Key431/Key4311 : val4311
 
-	ks.Client.KV().DeleteTree(ks.Path, nil)
+	kms.Client.KV().DeleteTree(kms.Path, nil)
 }
 
 func ExampleMapToFlattenMap() {
@@ -444,7 +444,7 @@ func ExampleKVMapToStruct_embeddedStruct() {
 	// &{Key1:val1 Key2:2 Key3:[1 2 3] ExSTChildLevel1:{Key41:val41 Key42:map[Key421:val421 Key422:[one two three]] ExSTChildLevel2:{Key431:map[Key4311:val4311]}}}
 }
 
-func ExampleKVStruct_ConsulKVToStruct_pointerStruct() {
+func ExampleKVMapStruct_ConsulKVToStruct_pointerStruct() {
 
 	type ExSTChildLevel2 struct {
 		Key431 map[string]interface{}
@@ -477,7 +477,7 @@ func ExampleKVStruct_ConsulKVToStruct_pointerStruct() {
 		"test/Key4/Key43/Key431/Key4311": "val4311",
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
@@ -488,7 +488,7 @@ func ExampleKVStruct_ConsulKVToStruct_pointerStruct() {
 		},
 	}
 
-	ks.Path = "test"
+	kms.Path = "test"
 
 	// Insert data in to consul
 	for k, v := range input {
@@ -497,13 +497,13 @@ func ExampleKVStruct_ConsulKVToStruct_pointerStruct() {
 			Value: []byte(v.(string)),
 		}
 
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return
 		}
 	}
 
-	err = ks.ConsulKVToStruct(st)
+	err = kms.ConsulKVToStruct(st)
 	if err != nil {
 		return
 	}
@@ -511,7 +511,7 @@ func ExampleKVStruct_ConsulKVToStruct_pointerStruct() {
 	fmt.Println(st)
 }
 
-func ExampleKVStruct_ConsulKVToStruct_embeddedStruct() {
+func ExampleKVMapStruct_ConsulKVToStruct_embeddedStruct() {
 
 	type ExSTChildLevel2 struct {
 		Key431 map[string]interface{}
@@ -544,14 +544,14 @@ func ExampleKVStruct_ConsulKVToStruct_embeddedStruct() {
 		"test/ExSTChildLevel1/ExSTChildLevel2/Key431/Key4311": "val4311",
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
 
 	st := &ExST{}
 
-	ks.Path = "test"
+	kms.Path = "test"
 
 	// Insert data in to consul
 	for k, v := range input {
@@ -560,25 +560,25 @@ func ExampleKVStruct_ConsulKVToStruct_embeddedStruct() {
 			Value: []byte(v.(string)),
 		}
 
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return
 		}
 	}
 
-	err = ks.ConsulKVToStruct(st)
+	err = kms.ConsulKVToStruct(st)
 	if err != nil {
 		return
 	}
 
-	ks.Client.KV().DeleteTree(ks.Path, nil)
+	kms.Client.KV().DeleteTree(kms.Path, nil)
 
 	fmt.Printf("%++v\n", st)
 	// Output:
 	// &{Key1:val1 Key2:2 Key3:[1 2 3] ExSTChildLevel1:{Key41:val41 Key42:map[Key421:val421 Key422:[one two three]] ExSTChildLevel2:{Key431:map[Key4311:val4311]}}}
 }
 
-func ExampleKVStruct_ConsulKVToStruct_normalStruct() {
+func ExampleKVMapStruct_ConsulKVToStruct_normalStruct() {
 
 	type ExSTChildLevel2 struct {
 		Key431 map[string]interface{}
@@ -611,14 +611,14 @@ func ExampleKVStruct_ConsulKVToStruct_normalStruct() {
 		"test/Key4/Key43/Key431/Key4311": "val4311",
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
 
 	st := &ExST{}
 
-	ks.Path = "test"
+	kms.Path = "test"
 
 	// Insert data in to consul
 	for k, v := range input {
@@ -627,25 +627,25 @@ func ExampleKVStruct_ConsulKVToStruct_normalStruct() {
 			Value: []byte(v.(string)),
 		}
 
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return
 		}
 	}
 
-	err = ks.ConsulKVToStruct(st)
+	err = kms.ConsulKVToStruct(st)
 	if err != nil {
 		return
 	}
 
-	ks.Client.KV().DeleteTree(ks.Path, nil)
+	kms.Client.KV().DeleteTree(kms.Path, nil)
 
 	fmt.Printf("%++v\n", st)
 	// Output:
 	// &{Key1:val1 Key2:2 Key3:[1 2 3] Key4:{Key41:val41 Key42:map[Key421:val421 Key422:[one two three]] Key43:{Key431:map[Key4311:val4311]}}}
 }
 
-func ExampleKVStruct_ConsulKVToMap() {
+func ExampleKVMapStruct_ConsulKVToMap() {
 	input := map[string]interface{}{
 		"test/Key1":                      "val1",
 		"test/Key2":                      "2",
@@ -660,12 +660,12 @@ func ExampleKVStruct_ConsulKVToMap() {
 		"test/Key4/Key43/Key431/Key4311": "val4311",
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		return
 	}
 
-	ks.Path = "test"
+	kms.Path = "test"
 
 	// Insert data in to consul
 	for k, v := range input {
@@ -674,13 +674,13 @@ func ExampleKVStruct_ConsulKVToMap() {
 			Value: []byte(v.(string)),
 		}
 
-		_, err := ks.Client.KV().Put(kv, nil)
+		_, err := kms.Client.KV().Put(kv, nil)
 		if err != nil {
 			return
 		}
 	}
 
-	out, err := ks.ConsulKVToMap()
+	out, err := kms.ConsulKVToMap()
 	if err != nil {
 		return
 	}

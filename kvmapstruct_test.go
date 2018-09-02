@@ -1,4 +1,4 @@
-package kvstruct
+package kvmapstruct
 
 import (
 	"reflect"
@@ -149,7 +149,7 @@ func TestMapToKVPairs(t *testing.T) {
 		},
 	}
 
-	ks, err := NewKVStruct("", "", "test")
+	kms, err := NewKVMapStruct("", "", "test")
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -158,7 +158,7 @@ func TestMapToKVPairs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := make(map[string]interface{})
 
-			o, err := ks.MapToKVPairs(tc.input, tc.prefix)
+			o, err := kms.MapToKVPairs(tc.input, tc.prefix)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -212,7 +212,7 @@ func TestMapToConsulKV(t *testing.T) {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -230,8 +230,8 @@ func TestMapToConsulKV(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := make(map[string]interface{})
 
-			ks.Path = tc.prefix
-			err := ks.MapToConsulKV(tc.input)
+			kms.Path = tc.prefix
+			err := kms.MapToConsulKV(tc.input)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -315,7 +315,7 @@ func TestStructToConsulKV(t *testing.T) {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -324,14 +324,14 @@ func TestStructToConsulKV(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := make(map[string]interface{})
 
-			ks.Path = tc.prefix
+			kms.Path = tc.prefix
 
-			err := ks.StructToConsulKV(tc.input)
+			err := kms.StructToConsulKV(tc.input)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
 
-			pairs, _, err := ks.Client.KV().List(tc.prefix, nil)
+			pairs, _, err := kms.Client.KV().List(tc.prefix, nil)
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -344,7 +344,7 @@ func TestStructToConsulKV(t *testing.T) {
 				t.Errorf("\nwant:\n%s\nhave:\n%s", tc.output, out)
 			}
 
-			ks.Client.KV().DeleteTree(tc.prefix, nil)
+			kms.Client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 
@@ -682,7 +682,7 @@ func TestConsulKVToStruct(t *testing.T) {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -695,7 +695,7 @@ func TestConsulKVToStruct(t *testing.T) {
 				},
 			}
 
-			ks.Path = tc.prefix
+			kms.Path = tc.prefix
 
 			// Insert data in to consul
 			for k, v := range tc.input {
@@ -704,13 +704,13 @@ func TestConsulKVToStruct(t *testing.T) {
 					Value: []byte(v.(string)),
 				}
 
-				_, err := ks.Client.KV().Put(kv, nil)
+				_, err := kms.Client.KV().Put(kv, nil)
 				if err != nil {
 					t.Errorf("%s", err)
 				}
 			}
 
-			err := ks.ConsulKVToStruct(st)
+			err := kms.ConsulKVToStruct(st)
 			if err != nil {
 				t.Errorf("%s", err)
 			}
@@ -719,7 +719,7 @@ func TestConsulKVToStruct(t *testing.T) {
 				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, st)
 			}
 
-			ks.Client.KV().DeleteTree(tc.prefix, nil)
+			kms.Client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 
@@ -768,14 +768,14 @@ func TestConsulKVToMap(t *testing.T) {
 		},
 	}
 
-	ks, err := NewKVStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
+	kms, err := NewKVMapStruct("localhost:8500", "adf4238a-882b-9ddc-4a9d-5b6758e4159e", "test")
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ks.Path = tc.prefix
+			kms.Path = tc.prefix
 
 			// Insert data in to consul
 			for k, v := range tc.input {
@@ -784,13 +784,13 @@ func TestConsulKVToMap(t *testing.T) {
 					Value: []byte(v.(string)),
 				}
 
-				_, err := ks.Client.KV().Put(kv, nil)
+				_, err := kms.Client.KV().Put(kv, nil)
 				if err != nil {
 					t.Errorf("%s", err)
 				}
 			}
 
-			out, err := ks.ConsulKVToMap()
+			out, err := kms.ConsulKVToMap()
 			if err != nil {
 				t.Errorf("%s", err)
 			}
@@ -799,7 +799,7 @@ func TestConsulKVToMap(t *testing.T) {
 				t.Errorf("\nwant:\n%v\nhave:\n%v", tc.output, out)
 			}
 
-			ks.Client.KV().DeleteTree(tc.prefix, nil)
+			kms.Client.KV().DeleteTree(tc.prefix, nil)
 		})
 	}
 
