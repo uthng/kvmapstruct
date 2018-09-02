@@ -494,7 +494,7 @@ func FlattenMapToStruct(in map[string]interface{}, out interface{}) error {
 				return err
 			}
 			// If struct is an embedded struct
-		} else if k == reflect.Struct && field.Anonymous {
+		} else if k == reflect.Struct {
 			// Create new struct pointer with the same type or same struct of embedded struct
 			st := reflect.New(v.Type())
 			// Call recursively to set value of each field of embedded struct
