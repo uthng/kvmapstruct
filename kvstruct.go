@@ -41,7 +41,7 @@ type KVStruct struct {
 }
 
 // NewKVStruct creates a new *KVStruct.
-// Format of URL is ip:port.
+// URL format is ip:port.
 func NewKVStruct(url, token, path string) (*KVStruct, error) {
 	ks := &KVStruct{}
 
@@ -69,7 +69,7 @@ func NewKVStruct(url, token, path string) (*KVStruct, error) {
 }
 
 // StructToConsulKV converts and saves the struct to Consul KV store
-// Input may be a Go struct.
+// input argument must be a Go struct.
 func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 	m := make(map[string]interface{})
 	v := reflect.ValueOf(input)
@@ -99,7 +99,7 @@ func (ks *KVStruct) StructToConsulKV(input interface{}) error {
 }
 
 // MapToConsulKV converts and saves the map to Consul KV store.
-// Input may be a map[string]interface{}.
+// input argument must be a map[string]interface{}.
 func (ks *KVStruct) MapToConsulKV(input interface{}) error {
 	v := reflect.ValueOf(input)
 	k := v.Kind()
@@ -128,7 +128,9 @@ func (ks *KVStruct) MapToConsulKV(input interface{}) error {
 
 // ConsulKVToStruct gets list of all consul keys from kvstruct path
 // and match them to the given struct in argument.
-// The Go struct and its substruct must be a pointer and initialized.
+// Out argument must be a initialiezed pointer to a Go struct.
+// Its substructs can be a pointer to a struct, embedded struct or struct.
+// If it is a pointer, it must be initialized.
 func (ks *KVStruct) ConsulKVToStruct(out interface{}) error {
 	m := make(map[string]interface{})
 
@@ -268,7 +270,9 @@ func MapToFlattenMap(in map[string]interface{}, prefix string) map[string]interf
 }
 
 // KVMapToStruct converts a KV map to a Go struct.
-// Go struct and its substruct must be a pointer and initialized.
+// Out argument must be a initialiezed pointer to a Go struct.
+// Its substructs can be a pointer to a struct, embedded struct or struct.
+// If it is a pointer, it must be initialized.
 func KVMapToStruct(in map[string]interface{}, prefix string, out interface{}) error {
 	var inVal interface{}
 
@@ -465,7 +469,9 @@ func KVMapToMap(in map[string]interface{}, prefix string) (map[string]interface{
 }
 
 // FlattenMapToStruct converts a flatten map to a Go struct.
-// Go struct and its substruct must be a pointer and initialized.
+// Out argument must be a initialiezed pointer to a Go struct.
+// Its substructs can be a pointer to a struct, embedded struct or struct.
+// If it is a pointer, it must be initialized.
 func FlattenMapToStruct(in map[string]interface{}, out interface{}) error {
 	if out == nil {
 		return fmt.Errorf("go struct is not initialized")
